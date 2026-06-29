@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #1F3864;
+}
+
+.bg-navy { background-color: var(--navy); }
+.text-navy { color: var(--navy); }
+.border-navy { border-color: var(--navy); }
+.hover\:bg-blue-900:hover { background-color: #1e3a5f; }
+
+@layer components {
+  .btn-primary {
+    @apply bg-navy text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-900 transition;
+  }
+}
