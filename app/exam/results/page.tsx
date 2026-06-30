@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -15,6 +15,14 @@ const AREA_NAMES: Record<string, string> = {
 const DBPR_TARGETS: Record<string, number> = { A:13, B:31, C:12, D:38, E:8, F:18 };
 
 export default function ResultsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-gray-400">Loading results...</p></div>}>
+      <ResultsContent />
+    </Suspense>
+  );
+}
+
+function ResultsContent() {
   const router = useRouter();
   const params = useSearchParams();
   const attemptId = params.get('attempt');
