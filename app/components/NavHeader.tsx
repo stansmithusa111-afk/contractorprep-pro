@@ -68,6 +68,9 @@ export default function NavHeader() {
           <Link href="/exam/sample" className="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
             Free Sample
           </Link>
+          <Link href="/about" className="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
+            About
+          </Link>
           {user && (
             <Link href="/exam" className="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
               Full Exam
@@ -130,6 +133,9 @@ export default function NavHeader() {
           </Link>
           <Link href="/exam/sample" className="px-3 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
             Free Sample
+          </Link>
+          <Link href="/about" className="px-3 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
+            About
           </Link>
           {user && (
             <Link href="/exam" className="px-3 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">

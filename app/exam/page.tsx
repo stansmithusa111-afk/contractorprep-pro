@@ -111,15 +111,22 @@ function Calculator({ onClose }: { onClose: () => void }) {
 }
 
 // ── Notepad ───────────────────────────────────────────────────
-function Notepad({ onClose }: { onClose: () => void }) {
-  const [text, setText] = useState('');
+function Notepad({ text, setText, onClose }: { text: string; setText: (t: string) => void; onClose: () => void }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { textareaRef.current?.focus(); }, []);
 
+  function handleClear() {
+    if (!text) return;
+    if (window.confirm('Clear all notes? This cannot be undone.')) setText('');
+  }
+
   return (
-    <div className="fixed bottom-24 right-64 w-72 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
-      <div className="bg-navy text-white px-4 py-2 flex justify-between items-center">
+    <div
+      style={{ resize: 'both', overflow: 'hidden', minWidth: '250px', minHeight: '180px', width: '300px' }}
+      className="fixed bottom-24 right-64 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 flex flex-col"
+    >
+      <div className="bg-navy text-white px-4 py-2 flex justify-between items-center flex-shrink-0">
         <span className="text-sm font-bold">📝 Notepad</span>
         <button onClick={onClose} className="text-white opacity-70 hover:opacity-100 text-lg leading-none">×</button>
       </div>
@@ -128,18 +135,19 @@ function Notepad({ onClose }: { onClose: () => void }) {
         value={text}
         onChange={e => setText(e.target.value)}
         placeholder="Type scratch notes here..."
-        className="w-full h-52 p-3 text-sm text-gray-800 resize-none outline-none font-mono"
+        className="flex-1 p-3 text-gray-800 outline-none font-mono resize-none min-h-0"
+        style={{ fontSize: '16px', lineHeight: '1.6' }}
       />
-      <div className="px-3 pb-2 flex justify-between items-center">
-        <span className="text-xs text-gray-400">Clears on submit</span>
-        <button onClick={() => setText('')} className="text-xs text-red-500 hover:text-red-700 font-semibold">Clear</button>
+      <div className="px-3 py-2 flex justify-between items-center border-t border-gray-100 flex-shrink-0">
+        <span className="text-xs text-gray-400">Notes saved during session</span>
+        <button onClick={handleClear} className="text-xs text-red-500 hover:text-red-700 font-semibold">Clear</button>
       </div>
     </div>
   );
 }
 
 const EXAM_MINUTES = 390; // 6.5 hours in minutes
-const TOTAL_QUESTIONS = 120;
+const TOTAL_QUESTIONS = 125; // 120 scored + 5 unscored pretest
 
 type ExamState = 'loading' | 'ready' | 'in-progress' | 'reviewing' | 'submitting' | 'done';
 
@@ -156,6 +164,7 @@ export default function ExamPage() {
   const [error, setError] = useState('');
   const [showCalc, setShowCalc] = useState(false);
   const [showNotepad, setShowNotepad] = useState(false);
+  const [notepadText, setNotepadText] = useState('');
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
 
   // Load user + questions
@@ -261,9 +270,9 @@ export default function ExamPage() {
       <div className="max-w-lg w-full bg-white rounded-2xl shadow p-8 text-center">
         <div className="text-5xl mb-4">📋</div>
         <h1 className="text-2xl font-bold text-navy mb-2">Florida {licenseTrack} B&F Exam</h1>
-        <p className="text-gray-500 mb-6">120 questions · Blueprint-weighted · 6.5 hours</p>
+        <p className="text-gray-500 mb-6">125 questions (120 scored + 5 pretest) · Blueprint-weighted · 6.5 hours</p>
         <div className="grid grid-cols-3 gap-4 mb-8 text-sm">
-          {[['120','Questions'],['6.5 hrs','Time Limit'],['70%','Passing Score']].map(([val, label]) => (
+          {[['120','Scored Qs'],['6.5 hrs','Time Limit'],['70%','Passing Score']].map(([val, label]) => (
             <div key={label} className="bg-blue-50 rounded-xl p-3">
               <div className="text-xl font-bold text-blue-700">{val}</div>
               <div className="text-blue-600">{label}</div>
@@ -478,7 +487,7 @@ export default function ExamPage() {
       </div>
 
       {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
-      {showNotepad && <Notepad onClose={() => setShowNotepad(false)} />}
+      {showNotepad && <Notepad text={notepadText} setText={setNotepadText} onClose={() => setShowNotepad(false)} />}
     </div>
   );
 }

@@ -22,23 +22,43 @@ export default function ResultsPage() {
   );
 }
 
+type MissedQuestion = {
+  question_text: string;
+  option_a: string; option_b: string; option_c: string; option_d: string;
+  correct_answer: string;
+  source_ref: string | null;
+  selected_answer: string | null;
+};
+
 function ResultsContent() {
   const router = useRouter();
   const params = useSearchParams();
   const attemptId = params.get('attempt');
   const [attempt, setAttempt] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [missedByArea, setMissedByArea] = useState<Record<string, MissedQuestion[]>>({});
+  const [expandedArea, setExpandedArea] = useState<string | null>(null);
 
   useEffect(() => {
     if (!attemptId) return;
     async function load() {
       const supabase = createClient();
-      const { data } = await supabase
-        .from('exam_attempts')
-        .select('*')
-        .eq('id', attemptId)
-        .single();
-      setAttempt(data);
+      const [{ data: attemptData }, { data: missedData }] = await Promise.all([
+        supabase.from('exam_attempts').select('*').eq('id', attemptId).single(),
+        supabase.from('attempt_answers')
+          .select('selected_answer, questions(question_text, option_a, option_b, option_c, option_d, correct_answer, source_ref, dbpr_area)')
+          .eq('attempt_id', attemptId)
+          .eq('is_correct', false),
+      ]);
+      setAttempt(attemptData);
+      const byArea: Record<string, MissedQuestion[]> = { A:[], B:[], C:[], D:[], E:[], F:[] };
+      missedData?.forEach((row: any) => {
+        const q = row.questions;
+        if (q?.dbpr_area && byArea[q.dbpr_area]) {
+          byArea[q.dbpr_area].push({ ...q, selected_answer: row.selected_answer });
+        }
+      });
+      setMissedByArea(byArea);
       setLoading(false);
     }
     load();
@@ -89,8 +109,8 @@ function ResultsContent() {
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex gap-3 items-start">
           <span className="text-blue-500 mt-0.5 flex-shrink-0">ℹ️</span>
           <p className="text-sm text-blue-800">
-            5 of the 120 questions were unscored pretest items distributed randomly throughout the exam.
-            These are not reflected in your score.
+            This exam included 5 unscored pretest items distributed randomly throughout the exam.
+            Your score reflects your performance on the 120 scored questions only.
           </p>
         </div>
 
@@ -114,27 +134,68 @@ function ResultsContent() {
 
         {/* Area breakdown */}
         <div className="bg-white rounded-2xl shadow p-6">
-          <h2 className="font-bold text-navy text-lg mb-4">Score by Content Area</h2>
-          <div className="space-y-4">
+          <h2 className="font-bold text-navy text-lg mb-1">Score by Content Area</h2>
+          <p className="text-xs text-gray-400 mb-4">Click any area to see missed questions.</p>
+          <div className="space-y-2">
             {Object.keys(AREA_NAMES).sort().map(area => {
               const correct = areaScores[area] || 0;
               const target = DBPR_TARGETS[area];
               const pct = Math.round((correct / target) * 100);
               const barColor = pct >= 70 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400';
+              const isOpen = expandedArea === area;
+              const missed = missedByArea[area] || [];
+              const OPTION_LABELS: Record<string, string> = { A: 'option_a', B: 'option_b', C: 'option_c', D: 'option_d' };
               return (
-                <div key={area}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-gray-700">
-                      <span className="inline-block bg-navy text-white text-xs px-1.5 py-0.5 rounded mr-2 font-bold">{area}</span>
-                      {AREA_NAMES[area]}
-                    </span>
-                    <span className={`font-bold ${pct >= 70 ? 'text-green-600' : 'text-red-500'}`}>
-                      {correct}/{target} ({pct}%)
-                    </span>
-                  </div>
-                  <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                  </div>
+                <div key={area} className="border border-gray-100 rounded-xl overflow-hidden">
+                  <button
+                    onClick={() => setExpandedArea(isOpen ? null : area)}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 transition"
+                  >
+                    <div className="flex justify-between text-sm mb-1.5">
+                      <span className="font-medium text-gray-700">
+                        <span className="inline-block bg-navy text-white text-xs px-1.5 py-0.5 rounded mr-2 font-bold">{area}</span>
+                        {AREA_NAMES[area]}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold ${pct >= 70 ? 'text-green-600' : 'text-red-500'}`}>
+                          {correct}/{target} ({pct}%)
+                        </span>
+                        <span className="text-gray-400 text-xs">{isOpen ? '▲' : '▼'}</span>
+                      </div>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                    </div>
+                  </button>
+
+                  {isOpen && (
+                    <div className="border-t border-gray-100 px-4 py-4 bg-gray-50 space-y-5">
+                      {missed.length === 0 ? (
+                        <p className="text-sm text-green-700 font-semibold flex items-center gap-2">
+                          <span>✓</span> No missed questions in this area.
+                        </p>
+                      ) : (
+                        missed.map((q, i) => (
+                          <div key={i} className="bg-white rounded-xl p-4 border border-gray-200 space-y-3">
+                            <p className="text-sm font-medium text-gray-900 leading-snug">{q.question_text}</p>
+                            <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                              {q.selected_answer && (
+                                <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full">
+                                  Your answer: {q.selected_answer} — {q[OPTION_LABELS[q.selected_answer] as keyof MissedQuestion] as string}
+                                </span>
+                              )}
+                              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full">
+                                Correct: {q.correct_answer} — {q[OPTION_LABELS[q.correct_answer] as keyof MissedQuestion] as string}
+                              </span>
+                            </div>
+                            {q.source_ref && (
+                              <p className="text-xs text-gray-400 italic">{q.source_ref}</p>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
