@@ -18,10 +18,10 @@ export default function HomePage() {
       <section className="bg-navy text-white py-20 px-6 text-center">
         <div className="max-w-3xl mx-auto">
           <div className="inline-block bg-blue-800 text-blue-200 text-xs font-bold px-3 py-1 rounded-full mb-6 tracking-wide uppercase">
-            Florida General · Building · Residential Exam Prep
+            General · Building · Residential · B&amp;F
           </div>
           <h1 className="text-4xl sm:text-5xl font-black leading-tight mb-4">
-            Pass Your Florida Contractor<br className="hidden sm:block" /> B&amp;F Exam With Confidence
+            Pass Your Florida Contractor Exam With Confidence
           </h1>
           <p className="text-blue-200 text-lg mb-8 max-w-xl mx-auto">
             Blueprint-weighted practice exams. Same format as the real test.

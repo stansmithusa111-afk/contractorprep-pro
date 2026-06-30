@@ -53,6 +53,18 @@ export default function NavHeader() {
           <Link href="/" className="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
             Home
           </Link>
+          <Link href="/general" className="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
+            General
+          </Link>
+          <Link href="/building" className="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
+            Building
+          </Link>
+          <Link href="/residential" className="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
+            Residential
+          </Link>
+          <Link href="/bf" className="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
+            B&amp;F
+          </Link>
           <Link href="/exam/sample" className="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
             Free Sample
           </Link>
@@ -103,6 +115,18 @@ export default function NavHeader() {
         <div className="sm:hidden mt-3 pb-2 border-t border-blue-700 pt-3 flex flex-col gap-1 text-sm font-semibold">
           <Link href="/" className="px-3 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
             Home
+          </Link>
+          <Link href="/general" className="px-3 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
+            General
+          </Link>
+          <Link href="/building" className="px-3 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
+            Building
+          </Link>
+          <Link href="/residential" className="px-3 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
+            Residential
+          </Link>
+          <Link href="/bf" className="px-3 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
+            B&amp;F
           </Link>
           <Link href="/exam/sample" className="px-3 py-2 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition">
             Free Sample

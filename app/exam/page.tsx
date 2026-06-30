@@ -118,7 +118,7 @@ function Notepad({ onClose }: { onClose: () => void }) {
   useEffect(() => { textareaRef.current?.focus(); }, []);
 
   return (
-    <div className="fixed bottom-24 right-6 w-72 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+    <div className="fixed bottom-24 right-64 w-72 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
       <div className="bg-navy text-white px-4 py-2 flex justify-between items-center">
         <span className="text-sm font-bold">📝 Notepad</span>
         <button onClick={onClose} className="text-white opacity-70 hover:opacity-100 text-lg leading-none">×</button>
@@ -349,14 +349,14 @@ export default function ExamPage() {
             {formatTime(timeLeft)}
           </span>
           <button
-            onClick={() => { setShowNotepad(v => !v); setShowCalc(false); }}
+            onClick={() => setShowNotepad(v => !v)}
             className={`px-3 py-1.5 rounded-lg font-bold text-sm transition ${showNotepad ? 'bg-yellow-400 text-navy' : 'bg-white/20 text-white hover:bg-white/30'}`}
             title="Notepad"
           >
             📝
           </button>
           <button
-            onClick={() => { setShowCalc(v => !v); setShowNotepad(false); }}
+            onClick={() => setShowCalc(v => !v)}
             className={`px-3 py-1.5 rounded-lg font-bold text-sm transition ${showCalc ? 'bg-yellow-400 text-navy' : 'bg-white/20 text-white hover:bg-white/30'}`}
             title="Calculator"
           >
