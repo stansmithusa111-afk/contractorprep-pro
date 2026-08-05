@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { fetchExamQuestions, saveExamAttempt, Question } from '@/lib/exam';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { EXAM_LABELS, EXAM_TIME_MINUTES } from '@/lib/examMeta';
+
+const VALID_EXAMS = ['B&F', 'CA', 'PM'];
 
 // ── Calculator ────────────────────────────────────────────────
 function Calculator({ onClose }: { onClose: () => void }) {
@@ -146,18 +149,28 @@ function Notepad({ text, setText, onClose }: { text: string; setText: (t: string
   );
 }
 
-const EXAM_MINUTES = 390; // 6.5 hours in minutes
-const TOTAL_QUESTIONS = 125; // 120 scored + 5 unscored pretest
-
 type ExamState = 'loading' | 'ready' | 'in-progress' | 'reviewing' | 'submitting' | 'done';
 
 export default function ExamPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-gray-500">Loading your exam...</p></div>}>
+      <ExamPageContent />
+    </Suspense>
+  );
+}
+
+function ExamPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const examParam = searchParams.get('exam');
+  const exam = examParam && VALID_EXAMS.includes(examParam) ? examParam : 'B&F';
+  const examMinutes = EXAM_TIME_MINUTES[exam];
+
   const [state, setState] = useState<ExamState>('loading');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [current, setCurrent] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(EXAM_MINUTES * 60);
+  const [timeLeft, setTimeLeft] = useState(examMinutes * 60);
   const [startTime, setStartTime] = useState<number>(0);
   const [userId, setUserId] = useState<string>('');
   const [licenseTrack, setLicenseTrack] = useState('CGC');
@@ -189,15 +202,16 @@ export default function ExamPage() {
       setLicenseTrack(profile.license_track);
 
       try {
-        const qs = await fetchExamQuestions(profile.license_track);
+        const qs = await fetchExamQuestions(exam, profile.license_track, user.id);
         setQuestions(qs);
+        setTimeLeft(examMinutes * 60);
         setState('ready');
       } catch (e: any) {
         setError(e.message);
       }
     }
     init();
-  }, []);
+  }, [exam]);
 
   // Countdown timer
   useEffect(() => {
@@ -232,13 +246,13 @@ export default function ExamPage() {
     setState('submitting');
     const timeSeconds = Math.round((Date.now() - startTime) / 1000);
     try {
-      const result = await saveExamAttempt({ userId, licenseTrack, questions, answers, timeSeconds });
+      const result = await saveExamAttempt({ exam, userId, licenseTrack, questions, answers, timeSeconds });
       router.push(`/exam/results?attempt=${result.attemptId}`);
     } catch (e: any) {
       setError(e.message);
       setState('in-progress');
     }
-  }, [state, userId, licenseTrack, questions, answers, startTime]);
+  }, [state, exam, userId, licenseTrack, questions, answers, startTime]);
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -265,14 +279,21 @@ export default function ExamPage() {
     </div>
   );
 
-  if (state === 'ready') return (
+  if (state === 'ready') {
+    const scoredCount = questions.filter(q => !q.is_pretest).length;
+    const pretestCount = questions.length - scoredCount;
+    const hours = (examMinutes / 60);
+    const hoursLabel = Number.isInteger(hours) ? `${hours}` : hours.toFixed(1);
+    return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-gray-50">
       <div className="max-w-lg w-full bg-white rounded-2xl shadow p-8 text-center">
         <div className="text-5xl mb-4">📋</div>
-        <h1 className="text-2xl font-bold text-navy mb-2">Florida {licenseTrack} B&F Exam</h1>
-        <p className="text-gray-500 mb-6">125 questions (120 scored + 5 pretest) · Blueprint-weighted · 6.5 hours</p>
+        <h1 className="text-2xl font-bold text-navy mb-2">Florida {licenseTrack} {EXAM_LABELS[exam]} Exam</h1>
+        <p className="text-gray-500 mb-6">
+          {questions.length} questions{pretestCount > 0 ? ` (${scoredCount} scored + ${pretestCount} pretest)` : ''} · Blueprint-weighted · {hoursLabel} hours
+        </p>
         <div className="grid grid-cols-3 gap-4 mb-8 text-sm">
-          {[['120','Scored Qs'],['6.5 hrs','Time Limit'],['70%','Passing Score']].map(([val, label]) => (
+          {[[`${scoredCount}`,'Scored Qs'],[`${hoursLabel} hrs`,'Time Limit'],['70%','Passing Score']].map(([val, label]) => (
             <div key={label} className="bg-blue-50 rounded-xl p-3">
               <div className="text-xl font-bold text-blue-700">{val}</div>
               <div className="text-blue-600">{label}</div>
@@ -284,7 +305,8 @@ export default function ExamPage() {
         </button>
       </div>
     </div>
-  );
+    );
+  }
 
   if (state === 'reviewing') {
     const flaggedQuestions = questions.filter(q => flagged[q.id]);
@@ -351,9 +373,9 @@ export default function ExamPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header bar */}
       <div className="bg-navy text-white px-6 py-3 flex items-center justify-between sticky top-0 z-10">
-        <div className="font-bold text-sm">ContractorPrep Pro · {licenseTrack} B&F</div>
+        <div className="font-bold text-sm">ContractorPrep Pro · {licenseTrack} {exam}</div>
         <div className="flex items-center gap-3 text-sm">
-          <span className="hidden sm:inline">{answeredCount} / {TOTAL_QUESTIONS} answered</span>
+          <span className="hidden sm:inline">{answeredCount} / {questions.length} answered</span>
           <span className={`font-mono font-bold ${timeLeft < 1800 ? 'text-red-300' : 'text-white'}`}>
             {formatTime(timeLeft)}
           </span>

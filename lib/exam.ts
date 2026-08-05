@@ -15,29 +15,40 @@ export type Question = {
 
 export type AreaScores = Record<string, number>;
 
-const PRETEST_COUNT = 5;
+const LICENSE_TRACK_TO_SCOPE: Record<string, string> = {
+  CGC: 'GC',
+  CBC: 'BC',
+  CRC: 'RC',
+};
 
-export async function fetchExamQuestions(licenseTrack: string): Promise<Question[]> {
+export function licenseTrackToScope(licenseTrack: string): string {
+  const scope = LICENSE_TRACK_TO_SCOPE[licenseTrack];
+  if (!scope) throw new Error(`Unknown license_track: ${licenseTrack}`);
+  return scope;
+}
+
+export async function fetchExamQuestions(
+  exam: string,
+  licenseTrack: string,
+  userId?: string
+): Promise<Question[]> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc('draw_exam_questions', {
-    p_track: licenseTrack,
+    p_exam: exam,
+    p_license_type: licenseTrackToScope(licenseTrack),
+    p_user_id: userId ?? null,
   });
   if (error) throw new Error(error.message);
 
-  const shuffled = (data as Question[]).sort(() => Math.random() - 0.5);
-
-  // Randomly designate 5 questions as unscored pretest items at draw time
-  const pretestIndices = new Set<number>();
-  while (pretestIndices.size < PRETEST_COUNT) {
-    pretestIndices.add(Math.floor(Math.random() * shuffled.length));
-  }
-
-  return shuffled.map((q, i) => ({ ...q, is_pretest: pretestIndices.has(i) }));
+  // Order is already randomized server-side (blueprint-weighted per area, then
+  // shuffled across areas) -- no client-side reshuffling needed.
+  return data as Question[];
 }
 
 export async function saveExamAttempt({
-  userId, licenseTrack, questions, answers, timeSeconds,
+  exam, userId, licenseTrack, questions, answers, timeSeconds,
 }: {
+  exam: string;
   userId: string;
   licenseTrack: string;
   questions: Question[];
@@ -47,8 +58,9 @@ export async function saveExamAttempt({
   const supabase = createClient();
 
   let correct = 0;
-  const areaScores: AreaScores = { A:0, B:0, C:0, D:0, E:0, F:0 };
-  const areaTotals: AreaScores = { A:0, B:0, C:0, D:0, E:0, F:0 };
+  const areas = Array.from(new Set(questions.map(q => q.dbpr_area)));
+  const areaScores: AreaScores = Object.fromEntries(areas.map(a => [a, 0]));
+  const areaTotals: AreaScores = Object.fromEntries(areas.map(a => [a, 0]));
 
   const attemptAnswers = questions.map(q => {
     const selected = answers[q.id] || null;
@@ -66,7 +78,7 @@ export async function saveExamAttempt({
 
   const { data: attempt, error: attemptError } = await supabase
     .from('exam_attempts')
-    .insert({ user_id: userId, license_track: licenseTrack, score, total_questions: scoredCount, time_seconds: timeSeconds, area_scores: areaScores })
+    .insert({ user_id: userId, exam, license_track: licenseTrack, score, total_questions: scoredCount, time_seconds: timeSeconds, area_scores: areaScores })
     .select('id').single();
 
   if (attemptError) throw new Error(attemptError.message);

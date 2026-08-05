@@ -9,8 +9,10 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // draw_exam_questions is SECURITY DEFINER so it bypasses RLS
-  const { data, error } = await supabase.rpc('draw_exam_questions', { p_track: 'ALL' });
+  // draw_exam_questions is SECURITY DEFINER so it bypasses RLS.
+  // This is an unauthenticated public teaser -- no real user/license type yet,
+  // so it uses the B&F exam with a representative license type (GC, the broadest).
+  const { data, error } = await supabase.rpc('draw_exam_questions', { p_exam: 'B&F', p_license_type: 'GC' });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const sample = (data as any[])

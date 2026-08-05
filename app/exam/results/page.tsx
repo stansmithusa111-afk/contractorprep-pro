@@ -3,16 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
-
-const AREA_NAMES: Record<string, string> = {
-  A: 'Establishing Business',
-  B: 'Administrative Duties',
-  C: 'Trade Operations',
-  D: 'Accounting Functions',
-  E: 'Human Resources',
-  F: 'Government Regulations',
-};
-const DBPR_TARGETS: Record<string, number> = { A:13, B:31, C:12, D:38, E:8, F:18 };
+import { getExamBlueprint, ExamBlueprint } from '@/lib/examMeta';
 
 export default function ResultsPage() {
   return (
@@ -35,6 +26,7 @@ function ResultsContent() {
   const params = useSearchParams();
   const attemptId = params.get('attempt');
   const [attempt, setAttempt] = useState<any>(null);
+  const [blueprint, setBlueprint] = useState<ExamBlueprint | null>(null);
   const [loading, setLoading] = useState(true);
   const [missedByArea, setMissedByArea] = useState<Record<string, MissedQuestion[]>>({});
   const [expandedArea, setExpandedArea] = useState<string | null>(null);
@@ -43,15 +35,19 @@ function ResultsContent() {
     if (!attemptId) return;
     async function load() {
       const supabase = createClient();
-      const [{ data: attemptData }, { data: missedData }] = await Promise.all([
-        supabase.from('exam_attempts').select('*').eq('id', attemptId).single(),
+      const { data: attemptData } = await supabase.from('exam_attempts').select('*').eq('id', attemptId).single();
+      if (!attemptData) { setLoading(false); return; }
+
+      const [{ data: missedData }, bp] = await Promise.all([
         supabase.from('attempt_answers')
           .select('selected_answer, questions(question_text, option_a, option_b, option_c, option_d, correct_answer, source_ref, dbpr_area)')
           .eq('attempt_id', attemptId)
           .eq('is_correct', false),
+        getExamBlueprint(attemptData.exam),
       ]);
       setAttempt(attemptData);
-      const byArea: Record<string, MissedQuestion[]> = { A:[], B:[], C:[], D:[], E:[], F:[] };
+      setBlueprint(bp);
+      const byArea: Record<string, MissedQuestion[]> = Object.fromEntries(bp.areas.map(a => [a.dbpr_area, []]));
       missedData?.forEach((row: any) => {
         const q = row.questions;
         if (q?.dbpr_area && byArea[q.dbpr_area]) {
@@ -65,7 +61,7 @@ function ResultsContent() {
   }, [attemptId]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-gray-400">Loading results...</p></div>;
-  if (!attempt) return <div className="min-h-screen flex items-center justify-center"><p className="text-red-500">Results not found.</p></div>;
+  if (!attempt || !blueprint) return <div className="min-h-screen flex items-center justify-center"><p className="text-red-500">Results not found.</p></div>;
 
   const passed = attempt.score >= 70;
   const areaScores = attempt.area_scores as Record<string, number>;
@@ -106,13 +102,15 @@ function ResultsContent() {
         </div>
 
         {/* Pretest notice */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex gap-3 items-start">
-          <span className="text-blue-500 mt-0.5 flex-shrink-0">ℹ️</span>
-          <p className="text-sm text-blue-800">
-            This exam included 5 unscored pretest items distributed randomly throughout the exam.
-            Your score reflects your performance on the 120 scored questions only.
-          </p>
-        </div>
+        {blueprint.pretestCount > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex gap-3 items-start">
+            <span className="text-blue-500 mt-0.5 flex-shrink-0">ℹ️</span>
+            <p className="text-sm text-blue-800">
+              This exam included {blueprint.pretestCount} unscored pretest items distributed randomly throughout the exam.
+              Your score reflects your performance on the {blueprint.scoredCount} scored questions only.
+            </p>
+          </div>
+        )}
 
         {/* Pass probability */}
         <div className={`rounded-2xl border-2 p-6 ${prob.bg} ${prob.border}`}>
@@ -137,9 +135,8 @@ function ResultsContent() {
           <h2 className="font-bold text-navy text-lg mb-1">Score by Content Area</h2>
           <p className="text-xs text-gray-400 mb-4">Click any area to see missed questions.</p>
           <div className="space-y-2">
-            {Object.keys(AREA_NAMES).sort().map(area => {
+            {blueprint.areas.map(({ dbpr_area: area, area_name, target_count: target }) => {
               const correct = areaScores[area] || 0;
-              const target = DBPR_TARGETS[area];
               const pct = Math.round((correct / target) * 100);
               const barColor = pct >= 70 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400';
               const isOpen = expandedArea === area;
@@ -154,7 +151,7 @@ function ResultsContent() {
                     <div className="flex justify-between text-sm mb-1.5">
                       <span className="font-medium text-gray-700">
                         <span className="inline-block bg-navy text-white text-xs px-1.5 py-0.5 rounded mr-2 font-bold">{area}</span>
-                        {AREA_NAMES[area]}
+                        {area_name}
                       </span>
                       <div className="flex items-center gap-2">
                         <span className={`font-bold ${pct >= 70 ? 'text-green-600' : 'text-red-500'}`}>

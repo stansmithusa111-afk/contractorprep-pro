@@ -1,11 +1,13 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { EXAM_LABELS } from '@/lib/examMeta';
 
-const AREA_NAMES: Record<string, string> = {
-  A: 'Establishing Business', B: 'Administrative', C: 'Trade Operations',
-  D: 'Accounting', E: 'Human Resources', F: 'Government Regs',
-};
+const EXAMS: { code: string; short: string }[] = [
+  { code: 'B&F', short: 'B&F' },
+  { code: 'CA', short: 'CA' },
+  { code: 'PM', short: 'PM' },
+];
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -39,22 +41,33 @@ export default async function DashboardPage() {
       <div className="max-w-3xl mx-auto space-y-6">
 
         {/* Header */}
-        <div className="bg-navy text-white rounded-2xl p-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-black">ContractorPrep Pro</h1>
-            <p className="text-blue-200 text-sm mt-1">
-              {profile?.license_track} Track · {hasAccess ? `${daysLeft} days remaining` : 'Access expired'}
-            </p>
+        <div className="bg-navy text-white rounded-2xl p-6">
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <div>
+              <h1 className="text-2xl font-black">ContractorPrep Pro</h1>
+              <p className="text-blue-200 text-sm mt-1">
+                {profile?.license_track} Track · {hasAccess ? `${daysLeft} days remaining` : 'Access expired'}
+              </p>
+            </div>
+            {hasAccess ? (
+              <div className="flex gap-2">
+                {EXAMS.map(({ code, short }) => (
+                  <Link
+                    key={code}
+                    href={`/exam?exam=${encodeURIComponent(code)}`}
+                    className="bg-white text-navy px-4 py-2.5 rounded-xl font-bold hover:bg-blue-50 transition text-sm"
+                    title={`Start ${EXAM_LABELS[code]} exam`}
+                  >
+                    {short} →
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <Link href="/redeem" className="bg-white text-navy px-6 py-3 rounded-xl font-bold hover:bg-blue-50 transition text-sm">
+                Redeem Code →
+              </Link>
+            )}
           </div>
-          {hasAccess ? (
-            <Link href="/exam" className="bg-white text-navy px-6 py-3 rounded-xl font-bold hover:bg-blue-50 transition text-sm">
-              Start Exam →
-            </Link>
-          ) : (
-            <Link href="/redeem" className="bg-white text-navy px-6 py-3 rounded-xl font-bold hover:bg-blue-50 transition text-sm">
-              Redeem Code →
-            </Link>
-          )}
         </div>
 
         {/* Stats */}
@@ -83,6 +96,7 @@ export default async function DashboardPage() {
                 return (
                   <div key={a.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                     <div>
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wide mr-2">{a.exam}</span>
                       <span className={`font-bold text-lg ${passed ? 'text-green-600' : 'text-red-500'}`}>{a.score}%</span>
                       <span className="text-gray-400 text-sm ml-3">{new Date(a.completed_at).toLocaleDateString()}</span>
                     </div>
@@ -99,9 +113,17 @@ export default async function DashboardPage() {
             {hasAccess ? (
               <>
                 <p className="text-gray-400 mb-4">No exams taken yet. Start your first practice exam!</p>
-                <Link href="/exam" className="bg-navy text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-900 transition">
-                  Take First Exam
-                </Link>
+                <div className="flex gap-3 justify-center flex-wrap">
+                  {EXAMS.map(({ code }) => (
+                    <Link
+                      key={code}
+                      href={`/exam?exam=${encodeURIComponent(code)}`}
+                      className="bg-navy text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-900 transition"
+                    >
+                      {EXAM_LABELS[code]}
+                    </Link>
+                  ))}
+                </div>
               </>
             ) : (
               <>
