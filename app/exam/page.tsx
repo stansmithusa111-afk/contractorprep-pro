@@ -1,10 +1,10 @@
 'use client';
 
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
-import { fetchExamQuestions, saveExamAttempt, Question } from '@/lib/exam';
+import { fetchExamQuestions, saveExamAttempt, licenseTrackToScope, Question } from '@/lib/exam';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { EXAM_LABELS, EXAM_TIME_MINUTES } from '@/lib/examMeta';
+import { EXAM_LABELS, getExamBlueprint } from '@/lib/examMeta';
 
 const VALID_EXAMS = ['B&F', 'CA', 'PM'];
 
@@ -164,13 +164,13 @@ function ExamPageContent() {
   const searchParams = useSearchParams();
   const examParam = searchParams.get('exam');
   const exam = examParam && VALID_EXAMS.includes(examParam) ? examParam : 'B&F';
-  const examMinutes = EXAM_TIME_MINUTES[exam];
 
   const [state, setState] = useState<ExamState>('loading');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [current, setCurrent] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(examMinutes * 60);
+  const [examMinutes, setExamMinutes] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(0);
   const [startTime, setStartTime] = useState<number>(0);
   const [userId, setUserId] = useState<string>('');
   const [licenseTrack, setLicenseTrack] = useState('CGC');
@@ -202,9 +202,14 @@ function ExamPageContent() {
       setLicenseTrack(profile.license_track);
 
       try {
-        const qs = await fetchExamQuestions(exam, profile.license_track, user.id);
+        const licenseType = licenseTrackToScope(profile.license_track);
+        const [qs, blueprint] = await Promise.all([
+          fetchExamQuestions(exam, profile.license_track, user.id),
+          getExamBlueprint(exam, licenseType),
+        ]);
         setQuestions(qs);
-        setTimeLeft(examMinutes * 60);
+        setExamMinutes(blueprint.timeLimitMinutes);
+        setTimeLeft(blueprint.timeLimitMinutes * 60);
         setState('ready');
       } catch (e: any) {
         setError(e.message);

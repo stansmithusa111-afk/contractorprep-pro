@@ -6,16 +6,6 @@ export const EXAM_LABELS: Record<string, string> = {
   PM: 'Project Management',
 };
 
-// Real per-exam time limits aren't published by DBPR with the same precision as the
-// blueprint weights (unlike B&F's 6.5-hour limit, which is DBPR-documented). 180 minutes
-// is the most consistently cited figure for the 60-question CA/PM portions across
-// secondary sources -- treat as provisional until confirmed against an official source.
-export const EXAM_TIME_MINUTES: Record<string, number> = {
-  'B&F': 390,
-  CA: 180,
-  PM: 180,
-};
-
 export type AreaBlueprint = {
   dbpr_area: string;
   area_name: string;
@@ -25,26 +15,34 @@ export type AreaBlueprint = {
 
 export type ExamBlueprint = {
   exam: string;
+  licenseType: string;
   scoredCount: number;
   pretestCount: number;
   totalCount: number;
+  timeLimitMinutes: number;
   areas: AreaBlueprint[];
 };
 
 /**
- * Fetches blueprint weights/targets live from Supabase (exam_config + exam_blueprints)
- * rather than hardcoding them client-side, so the UI can never drift from what
- * draw_exam_questions() actually generates.
+ * Fetches blueprint weights/targets/time-limit live from Supabase (exam_config +
+ * exam_blueprints) rather than hardcoding them client-side, so the UI can never drift
+ * from what draw_exam_questions() actually generates. exam_config has one row per
+ * (exam, license_type) for exams whose length varies by license type (CA/PM), or a
+ * single license_type='ALL' row for exams that don't (B&F) -- mirrors the same
+ * exact-match-then-fall-back-to-ALL lookup draw_exam_questions() uses server-side.
  */
-export async function getExamBlueprint(exam: string): Promise<ExamBlueprint> {
+export async function getExamBlueprint(exam: string, licenseType: string): Promise<ExamBlueprint> {
   const supabase = createClient();
-  const [{ data: config, error: configError }, { data: weights, error: weightsError }] = await Promise.all([
-    supabase.from('exam_config').select('*').eq('exam', exam).single(),
+  const [{ data: configRows, error: configError }, { data: weights, error: weightsError }] = await Promise.all([
+    supabase.from('exam_config').select('*').eq('exam', exam).in('license_type', [licenseType, 'ALL']),
     supabase.from('exam_blueprints').select('*').eq('exam', exam).order('dbpr_area'),
   ]);
 
-  if (configError || !config) throw new Error(`Unknown exam: ${exam}`);
+  if (configError || !configRows || configRows.length === 0) throw new Error(`Unknown exam: ${exam}`);
   if (weightsError || !weights) throw new Error(`No blueprint weights found for exam: ${exam}`);
+
+  const config = configRows.find(r => r.license_type === licenseType) ?? configRows.find(r => r.license_type === 'ALL');
+  if (!config) throw new Error(`No exam_config row for ${exam}/${licenseType}`);
 
   const areas: AreaBlueprint[] = weights.map(w => ({
     dbpr_area: w.dbpr_area,
@@ -64,9 +62,11 @@ export async function getExamBlueprint(exam: string): Promise<ExamBlueprint> {
 
   return {
     exam,
+    licenseType,
     scoredCount: config.scored_count,
     pretestCount: config.pretest_count,
     totalCount: config.scored_count + config.pretest_count,
+    timeLimitMinutes: config.time_limit_minutes,
     areas,
   };
 }

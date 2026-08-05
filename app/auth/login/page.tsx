@@ -9,7 +9,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
     setLoading(true); setError('');
 
     const supabase = createBrowserClient(
@@ -17,8 +18,7 @@ export default function LoginPage() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    console.log('signInWithPassword response:', { data, error });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) { setError(error.message); setLoading(false); return; }
 
@@ -30,30 +30,42 @@ export default function LoginPage() {
       <div className="max-w-sm w-full bg-white rounded-2xl shadow p-8">
         <h1 className="text-xl font-black text-navy mb-6">Sign in</h1>
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-        <div className="space-y-4">
+        <form className="space-y-4" onSubmit={handleLogin}>
           <input
             type="email"
+            aria-label="Email"
             placeholder="Email"
             value={email}
             onChange={e => setEmail(e.target.value)}
+            autoComplete="email"
+            required
             className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-navy outline-none"
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-navy outline-none"
-          />
+          <div>
+            <input
+              type="password"
+              aria-label="Password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-navy outline-none"
+            />
+            <p className="text-right mt-1.5 px-1">
+              <Link href="/auth/forgot-password" className="text-xs text-navy font-semibold hover:underline">
+                Forgot password?
+              </Link>
+            </p>
+          </div>
           <button
-            onClick={handleLogin}
+            type="submit"
             disabled={loading}
             className="w-full bg-navy text-white py-3 rounded-xl font-bold hover:bg-blue-900 disabled:opacity-50 transition"
           >
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
-        </div>
+        </form>
         <p className="text-center text-sm text-gray-500 mt-4">
           No account? <Link href="/auth/signup" className="text-navy font-semibold">Get access</Link>
         </p>

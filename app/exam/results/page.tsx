@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getExamBlueprint, ExamBlueprint } from '@/lib/examMeta';
+import { licenseTrackToScope } from '@/lib/exam';
 
 export default function ResultsPage() {
   return (
@@ -43,7 +44,7 @@ function ResultsContent() {
           .select('selected_answer, questions(question_text, option_a, option_b, option_c, option_d, correct_answer, source_ref, dbpr_area)')
           .eq('attempt_id', attemptId)
           .eq('is_correct', false),
-        getExamBlueprint(attemptData.exam),
+        getExamBlueprint(attemptData.exam, licenseTrackToScope(attemptData.license_track)),
       ]);
       setAttempt(attemptData);
       setBlueprint(bp);

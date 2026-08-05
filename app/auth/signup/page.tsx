@@ -4,17 +4,32 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+const MIN_PASSWORD_LENGTH = 8;
+
 export default function SignupPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [licenseTrack, setLicenseTrack] = useState('CGC');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function handleSignup() {
-    setLoading(true); setError('');
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
       email,
@@ -32,29 +47,56 @@ export default function SignupPage() {
       <div className="max-w-sm w-full bg-white rounded-2xl shadow p-8">
         <h1 className="text-xl font-black text-navy mb-6">Create your account</h1>
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-        <div className="space-y-4">
+        <form className="space-y-4" onSubmit={handleSignup}>
           <input
             type="text"
+            aria-label="Full name"
             placeholder="Full name"
             value={fullName}
             onChange={e => setFullName(e.target.value)}
+            autoComplete="name"
+            required
             className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-navy outline-none"
           />
           <input
             type="email"
+            aria-label="Email"
             placeholder="Email"
             value={email}
             onChange={e => setEmail(e.target.value)}
+            autoComplete="email"
+            required
             className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-navy outline-none"
           />
+          <div>
+            <input
+              type="password"
+              aria-label="Password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={MIN_PASSWORD_LENGTH}
+              required
+              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-navy outline-none"
+            />
+            <p className="text-xs text-gray-400 mt-1.5 px-1">
+              At least {MIN_PASSWORD_LENGTH} characters.
+            </p>
+          </div>
           <input
             type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
+            aria-label="Confirm password"
+            placeholder="Confirm password"
+            value={confirmPassword}
+            onChange={e => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            minLength={MIN_PASSWORD_LENGTH}
+            required
             className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-navy outline-none"
           />
           <select
+            aria-label="License type"
             value={licenseTrack}
             onChange={e => setLicenseTrack(e.target.value)}
             className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-navy outline-none bg-white"
@@ -64,13 +106,13 @@ export default function SignupPage() {
             <option value="CRC">CRC — Residential Contractor</option>
           </select>
           <button
-            onClick={handleSignup}
+            type="submit"
             disabled={loading}
             className="w-full bg-navy text-white py-3 rounded-xl font-bold hover:bg-blue-900 disabled:opacity-50 transition"
           >
             {loading ? 'Creating account...' : 'Create account'}
           </button>
-        </div>
+        </form>
         <p className="text-center text-sm text-gray-500 mt-4">
           Already have an account? <Link href="/auth/login" className="text-navy font-semibold">Sign in</Link>
         </p>
