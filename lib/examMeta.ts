@@ -33,16 +33,25 @@ export type ExamBlueprint = {
  */
 export async function getExamBlueprint(exam: string, licenseType: string): Promise<ExamBlueprint> {
   const supabase = createClient();
-  const [{ data: configRows, error: configError }, { data: weights, error: weightsError }] = await Promise.all([
+  const [{ data: configRows, error: configError }, { data: weightRows, error: weightsError }] = await Promise.all([
     supabase.from('exam_config').select('*').eq('exam', exam).in('license_type', [licenseType, 'ALL']),
-    supabase.from('exam_blueprints').select('*').eq('exam', exam).order('dbpr_area'),
+    supabase.from('exam_blueprints').select('*').eq('exam', exam).in('license_type', [licenseType, 'ALL']).order('dbpr_area'),
   ]);
 
   if (configError || !configRows || configRows.length === 0) throw new Error(`Unknown exam: ${exam}`);
-  if (weightsError || !weights) throw new Error(`No blueprint weights found for exam: ${exam}`);
+  if (weightsError || !weightRows || weightRows.length === 0) throw new Error(`No blueprint weights found for exam: ${exam}`);
 
   const config = configRows.find(r => r.license_type === licenseType) ?? configRows.find(r => r.license_type === 'ALL');
   if (!config) throw new Error(`No exam_config row for ${exam}/${licenseType}`);
+
+  // Same exact-match-then-'ALL'-fallback as exam_config: pick the license-specific
+  // weight row per area when one exists, otherwise the exam's uniform 'ALL' row (B&F).
+  const weightsByArea = new Map<string, typeof weightRows[number]>();
+  for (const w of weightRows) {
+    const existing = weightsByArea.get(w.dbpr_area);
+    if (!existing || w.license_type === licenseType) weightsByArea.set(w.dbpr_area, w);
+  }
+  const weights = [...weightsByArea.values()].sort((a, b) => a.dbpr_area.localeCompare(b.dbpr_area));
 
   const areas: AreaBlueprint[] = weights.map(w => ({
     dbpr_area: w.dbpr_area,
